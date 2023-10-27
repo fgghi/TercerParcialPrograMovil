@@ -1,0 +1,24 @@
+name: flutter_application_1
+description: A new Flutter project.
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: '>=3.1.2 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  bloc: ^8.1.1
+  flutter_bloc: ^8.1.2
+  shared_preferences: ^2.2.2
+  dio: ^5.3.3
+  local_auth: ^2.1.7
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
