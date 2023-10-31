@@ -1,54 +1,191 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/PopularMovieScreen.dart';
-import 'package:flutter_application_1/practica.dart';
+import 'package:flutter_application_1/SummaryScreen.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:dio/dio.dart';
+import 'package:provider/provider.dart';
 
-class LoginScreen extends StatelessWidget {
-  final AuthService authService = AuthService();
-  final emailController = TextEditingController();
-  final passwordController = TextEditingController();
 
-  Future<void> _signIn(BuildContext context) async {
-    String email = emailController.text;
-    String password = passwordController.text;
+class Movie {
+  final int id;
+  final String title;
+  final String posterPath;
 
-    bool isSignedIn = await authService.signInWithEmailAndPassword(email, password);
+  Movie(this.id, this.title, this.posterPath);
+}
 
-    if (isSignedIn) {
-      // Inicio de sesión correcto, navega a MovieScreen
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => PopularMoviesScreen()),
-      );
+class MovieRepository {
+  final Dio dio = Dio();
+
+  Future<List<Movie>> fetchMovies() async {
+    final response = await dio.get(
+        'https://api.themoviedb.org/3/discover/movie?sort_by=popularity.desc&api_key=fa3e844ce31744388e07fa47c7c5d8c3');
+    if (response.statusCode == 200) {
+      final data = response.data;
+      final results = data['results'] as List;
+      return results
+          .map((movieData) => Movie(
+                movieData['id'],
+                movieData['title'],
+                movieData['poster_path'],
+              ))
+          .toList();
     } else {
-      // Muestra mensaje de error
+      throw Exception('Failed to load movies');
+    }
+  }
+}
+
+class TicketBloc extends Cubit<int> {
+  TicketBloc() : super(0);
+
+  void increment() => emit(state + 1);
+
+  void decrement() {
+    if (state > 0) {
+      emit(state - 1);
+    }
+  }
+}
+
+class MovieApp extends StatelessWidget {
+  final MovieRepository movieRepository = MovieRepository();
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: MultiProvider(
+        providers: [
+          Provider<MovieRepository>(create: (_) => movieRepository),
+          Provider<MovieDropdown>(create: (_) => MovieDropdown()),
+          BlocProvider<TicketBloc>(create: (_) => TicketBloc()),
+        ],
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text('CineApp'),
+          ),
+          body: Column(
+            children: [
+              MovieDropdown(),
+              TicketCounter(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class MovieDropdown extends StatefulWidget {
+  get movies => null;
+
+  get selectedMovieIndex => null;
+
+  @override
+  _MovieDropdownState createState() => _MovieDropdownState();
+}
+
+class _MovieDropdownState extends State<MovieDropdown> {
+  int selectedMovieIndex = 0;
+  List<Movie> movies = [];
+
+  @override
+  void initState() {
+    super.initState();
+    fetchMovies();
+  }
+
+  Future<void> fetchMovies() async {
+    final movieRepository = context.read<MovieRepository>();
+    try {
+      final movieList = await movieRepository.fetchMovies();
+      setState(() {
+        movies = movieList;
+      });
+    } catch (e) {
+      print('Error fetching movies: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Iniciar Sesión'),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            TextField(
-              controller: emailController,
-              decoration: InputDecoration(labelText: 'Correo Electrónico'),
-            ),
-            TextField(
-              controller: passwordController,
-              decoration: InputDecoration(labelText: 'Contraseña'),
-              obscureText: true,
-            ),
-            ElevatedButton(
-              onPressed: () => _signIn(context), // Pasa el contexto como argumento
-              child: Text('Iniciar Sesión'),
-            ),
-          ],
+    return Column(
+      children: [
+        DropdownButton<int>(
+          value: selectedMovieIndex,
+          items: movies
+              .asMap()
+              .entries
+              .map((entry) => DropdownMenuItem<int>(
+                    value: entry.key,
+                    child: Text(entry.value.title),
+                  ))
+              .toList(),
+          onChanged: (index) {
+            setState(() {
+              selectedMovieIndex = index!;
+            });
+          },
         ),
-      ),
+        if (movies.isNotEmpty &&
+            selectedMovieIndex >= 0 &&
+            selectedMovieIndex < movies.length)
+          Image.network(
+            'https://image.tmdb.org/t/p/w500/${movies[selectedMovieIndex].posterPath}',
+            height: 200,
+          )
+        else
+          Text('No hay poster disponible'),
+      ],
+    );
+  }
+}
+
+class TicketCounter extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        BlocBuilder<TicketBloc, int>(
+          builder: (context, state) {
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: () {
+                    context.read<TicketBloc>().increment();
+                  },
+                  child: Icon(Icons.add),
+                ),
+                Text('$state'),
+                ElevatedButton(
+                  onPressed: () {
+                    context.read<TicketBloc>().decrement();
+                  },
+                  child: Icon(Icons.remove),
+                ),
+              ],
+            );
+          },
+        ),
+        ElevatedButton(
+          onPressed: () {
+            final movie = context.read<MovieDropdown>().movies[
+                context.read<MovieDropdown>().selectedMovieIndex];
+            final ticketCount = context.read<TicketBloc>().state;
+            final totalPrice = ticketCount * 30;
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => SummaryPage(
+                  movie: movie,
+                  ticketCount: ticketCount,
+                  totalPrice: totalPrice,
+                ),
+              ),
+            );
+          },
+          child: Text('Confirmar Cantidad de Entradas'),
+        ),
+      ],
     );
   }
 }
