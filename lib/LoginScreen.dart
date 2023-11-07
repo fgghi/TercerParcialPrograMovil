@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/SummaryScreen.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:dio/dio.dart';
 import 'package:provider/provider.dart';
-
 
 class Movie {
   final int id;
@@ -45,6 +43,10 @@ class TicketBloc extends Cubit<int> {
       emit(state - 1);
     }
   }
+}
+
+void main() {
+  runApp(MovieApp());
 }
 
 class MovieApp extends StatelessWidget {
@@ -168,23 +170,46 @@ class TicketCounter extends StatelessWidget {
           },
         ),
         ElevatedButton(
-          onPressed: () {
-            final movie = context.read<MovieDropdown>().movies[
-                context.read<MovieDropdown>().selectedMovieIndex];
-            final ticketCount = context.read<TicketBloc>().state;
+        onPressed: () {
+            final movieDropdown =Movie(5, 'title', 'posterPath');
+            final ticketBloc = 10;
+            final movie = movieDropdown;
+            final ticketCount = ticketBloc;
             final totalPrice = ticketCount * 30;
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => SummaryPage(
-                  movie: movie,
-                  ticketCount: ticketCount,
-                  totalPrice: totalPrice,
-                ),
-              ),
+
+            showDialog(
+              context: context,
+              builder: (context) {
+                return AlertDialog(
+                  title: Text('Resumen de Compra'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Película: ${movie.title}'),
+                      Text('Cantidad de Entradas: $ticketCount'),
+                      Text('Precio Total: $totalPrice Bs.'),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      child: Text('Cancelar'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      child: Text('Confirmar'),
+                    ),
+                  ],
+                );
+              },
             );
-          },
-          child: Text('Confirmar Cantidad de Entradas'),
-        ),
+          } ,
+        child: Text('Confirmar Cantidad de Entradas'),
+      ),
       ],
     );
   }
